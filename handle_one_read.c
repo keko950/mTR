@@ -34,7 +34,7 @@
 #include <string.h>
 #include "mTR.h"
 #include "chaining.h"
-#include "timing.h"
+
 
 void print_4_decimals(int val, int len){
     if(len > 0){
@@ -192,9 +192,6 @@ void handle_one_TR(char *readID, int inputLen, int print_alignment){
     //
     // Locate overlapping regions of tandem repeats
     //
-    // Para medir tiempos
-    resnfo start, end;
-    timenfo time;
     int random_string_length;
     int MIN_random_string_length= 100;    
 

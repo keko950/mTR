@@ -1,7 +1,7 @@
 # Makefile
 
 PROGRAM = mTR
-OBJS	= main.o handle_one_read.o consensus.o wrap_around_DP.o handle_one_file.o chaining.o fill_directional_index.o  
+OBJS	= main.o handle_one_read.o consensus.o wrap_around_DP.o handle_one_file.o chaining.o fill_directional_index.o
 CC	= mpicc
 CPP	= mpic++
 CFLAGS	= -std=c99 -fPIC -fcommon

@@ -33,6 +33,7 @@
 #include <math.h>
 #include <string.h>
 #include "mTR.h"
+#include "timing.h"
 
 void free_global_variables_and_exit(){
     // If any of the above global variables failed to be allocated in the heap, free other variables and exit.
@@ -268,14 +269,19 @@ void return_one_read(FILE *fp, Read *currentRead){
     }
 }
 
-int handle_one_file(char *inputFile, int print_alignment){
+int handle_one_file(char *inputFile, int print_alignment, int myid, int numprocs){
     //---------------------------------------------------------------------------
     // Feed a string from a file, convert the string into a series of integers
     //---------------------------------------------------------------------------
     
     malloc_global_variables();
     Read *currentRead = malloc(sizeof(Read));
-    
+    resnfo start_return_read,end_return_read;
+    resnfo start_handle_read,end_handle_read;
+    timenfo timeelapsed;
+    float sum_return_read = 0.0;
+    float sum_handle_read = 0.0;
+    int count = 0;
     FILE *fp = init_handle_one_file(inputFile);
     // Feed each read and try to detect repeats
     for(;;){
@@ -286,7 +292,6 @@ int handle_one_file(char *inputFile, int print_alignment){
         handle_one_read(currentRead->ID, currentRead->len, tmp_read_cnt, print_alignment);
     }
     fclose(fp);
-    
     free_global_variables();
     free(currentRead);
     return(tmp_read_cnt);
