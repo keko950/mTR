@@ -27,8 +27,11 @@
  either expressed or implied, of the FreeBSD Project.
  */
 
+#include <mpi.h>
+
 // Key default parameters
 #define MAX_INPUT_LENGTH 1000000 // The maximum length of each read
+#define MAX_SEQ_INPUT 1000     // The maximum number of sequences input
 #define MIN_MATCH_RATIO 0.6      // The minimum threshold of match ratio　between the estimated repeat unit and the repeat in a given raw read
 #define MIN_PERIOD 2            // Minimum period length
 #define MAX_PERIOD 500          // Maximum period length
@@ -56,6 +59,7 @@
 
 #define count_maxKmer 6
 #define PrimeMax 256019
+
 
 //  Global variables in the heap
 int Manhattan_Distance;         // The default setting is 1 in the main.
@@ -123,7 +127,7 @@ typedef struct {        // MAX_ID_LENGTH + MAX_EPRIOD + 28*4 = 612 bytes
 #define MAX(a, b) ((a) > (b) ? (a) : (b))
 #define DIFF(x, y) ((x) > (y) ? ((x) - (y)) : ((y) - (x)))
 
-int handle_one_file(char *inputFile, int print_alignment);
+int handle_one_file(char *inputFile, int print_alignment, int myid, int numprocs);
 void handle_one_read( char *readID, int inputLen, int read_cnt, int print_alignment);
 void fill_directional_index_with_end(int DI_array_length, int inputLen, int random_string_length);
 void init_inputString(int k, int query_start, int query_end, int inputLen);

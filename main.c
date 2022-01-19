@@ -47,6 +47,12 @@ void print_error_message(){
 
 int main(int argc, char *argv[])
 {
+    // MPI variables
+    int myid, numprocs;
+    MPI_Init(&argc, &argv);
+    MPI_Comm_rank(MPI_COMM_WORLD, &myid);
+    MPI_Comm_size(MPI_COMM_WORLD, &numprocs);
+
     char *inputFile;
 
     // default parameters
@@ -54,7 +60,7 @@ int main(int argc, char *argv[])
     min_match_ratio = MIN_MATCH_RATIO;
     int print_alignment = 0;
     Manhattan_Distance = 1;
-    
+
     int opt;
     while ((opt = getopt(argc, argv, "acm:p")) != -1) {
         switch(opt){
@@ -100,7 +106,7 @@ int main(int argc, char *argv[])
     struct timeval s, e;
     gettimeofday(&s, NULL);
     
-    int read_cnt = handle_one_file(inputFile, print_alignment);
+    int read_cnt = handle_one_file(inputFile, print_alignment, myid, numprocs);
     
     gettimeofday(&e, NULL);
     time_all = (e.tv_sec - s.tv_sec) + (e.tv_usec - s.tv_usec)*1.0E-6;
@@ -119,5 +125,6 @@ int main(int argc, char *argv[])
         fprintf(stderr, "\t%f\tchaining\n",   time_chaining);
         fprintf(stderr, "\t%i\tCount of queries\n", query_counter);
     }
+    MPI_Finalize();
     return EXIT_SUCCESS;
 }

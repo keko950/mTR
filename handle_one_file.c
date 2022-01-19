@@ -34,6 +34,7 @@
 #include <string.h>
 #include "mTR.h"
 
+
 void free_global_variables_and_exit(){
     // If any of the above global variables failed to be allocated in the heap, free other variables and exit.
     if(nextReadID        != NULL){ free(nextReadID); }
@@ -268,26 +269,113 @@ void return_one_read(FILE *fp, Read *currentRead){
     }
 }
 
-int handle_one_file(char *inputFile, int print_alignment){
+int return_all_reads(FILE *fp, Read *readList, int myid, int numprocs){
+    // Return 0 if it is the last read
+    char *s = (char *)malloc(sizeof(char)*BLK);
+    int i;
+    int cnt=-1;
+    int string_cnt=0;
+    
+    while (fgets(s, BLK, fp) != NULL) { // Feed a string of size BLK from fp into string s
+        if(s[0] == '>'){
+            cnt++;
+            string_cnt=0;
+            for(i=1; s[i]!='\0' && s[i]!='\n' && s[i]!='\r' && i<BLK; i++) {
+                fprintf(stderr, "%d\n", i);
+                fprintf(stderr, "%d\n", cnt);
+                readList[cnt].ID[i-1] = s[i];
+            }
+            
+            readList[cnt].ID[i-1] = '\0';
+        } else {
+            // Feed the string
+            for(i=0; s[i]!='\0' && s[i]!='\n' && s[i]!='\r'; i++){
+            //for(i=0; s[i]!='\0' && s[i]!='\n'; i++){
+                readList[cnt].codedString[string_cnt++] = char2int(s[i]);
+                if( MAX_INPUT_LENGTH <= string_cnt){
+                    fprintf(stderr, "fatal error: The length %d is tentatively at most %i.\nread ID = %s\nSet MAX_INPUT_LENGTH to a larger value", string_cnt, MAX_INPUT_LENGTH, readList[cnt].ID);
+                    free_global_variables_and_exit();
+                    exit(EXIT_FAILURE);
+                }
+            }
+            readList[cnt].len = string_cnt;
+        }
+        
+    }
+
+    return cnt+1;
+}
+
+
+int handle_one_file(char *inputFile, int print_alignment, int myid, int numprocs){
     //---------------------------------------------------------------------------
     // Feed a string from a file, convert the string into a series of integers
     //---------------------------------------------------------------------------
     
     malloc_global_variables();
     Read *currentRead = malloc(sizeof(Read));
+    int read_count;
+    Read *readList;
+//    if( readList == NULL ){ free_global_variables_and_exit(); }
     
+    MPI_Datatype readType;
+    MPI_Datatype readTypes[3] = { MPI_INT, MPI_INT, MPI_CHAR };
+    int blocklen[3] = { 1, MAX_INPUT_LENGTH, MAX_ID_LENGTH };
+
+    MPI_Aint displacements[3];
+    Read dummy_read;
+    MPI_Aint base_address;
+    MPI_Get_address(&dummy_read, &base_address);
+    MPI_Get_address(&dummy_read.len, &displacements[0]);
+    MPI_Get_address(&dummy_read.codedString[0], &displacements[1]);
+    MPI_Get_address(&dummy_read.ID[0], &displacements[2]);
+    displacements[0] = MPI_Aint_diff(displacements[0], base_address);
+    displacements[1] = MPI_Aint_diff(displacements[1], base_address);
+    displacements[2] = MPI_Aint_diff(displacements[2], base_address);
+
+    MPI_Type_create_struct(3, blocklen, displacements, readTypes, &readType);
+    MPI_Type_commit(&readType);
+
     FILE *fp = init_handle_one_file(inputFile);
     // Feed each read and try to detect repeats
-    for(;;){
-        return_one_read(fp, currentRead);
-        if(currentRead->len == 0) break;
-        for(int i=0; i<currentRead->len; i++)
-            orgInputString[i] = currentRead->codedString[i];
-        handle_one_read(currentRead->ID, currentRead->len, tmp_read_cnt, print_alignment);
+    if (myid == 0) {
+        readList = malloc(sizeof(Read) * MAX_SEQ_INPUT);
+        read_count = return_all_reads(fp, readList, myid, numprocs);
     }
+    if (numprocs > 1) {
+        MPI_Bcast(
+            &read_count,
+            1,
+            MPI_INT,
+            0,
+            MPI_COMM_WORLD);
+
+        if (myid != 0) {
+            readList = malloc(sizeof(Read) * (read_count / numprocs));
+        }
+
+        MPI_Scatter(
+            readList,
+            read_count / numprocs,
+            readType,
+            readList,
+            read_count / numprocs,
+            readType,
+            0,
+            MPI_COMM_WORLD);
+    }
+
+    fprintf(stderr, "%d \n",read_count / numprocs);
+    for (int i=0; i < read_count / numprocs; i++) {
+        for(int j=0; j < readList[i].len; j++)
+            orgInputString[j] = readList[i].codedString[j];
+        handle_one_read(readList[i].ID, readList[i].len, read_count, print_alignment);
+    }
+
     fclose(fp);
     
     free_global_variables();
+    free(readList);
     free(currentRead);
     return(tmp_read_cnt);
 }
