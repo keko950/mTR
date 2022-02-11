@@ -269,6 +269,42 @@ void return_one_read(FILE *fp, Read *currentRead){
     }
 }
 
+void read_sequences(FILE *fp, int *seq_lens, long int *seq_start_pointers, int *total_seqs_len, int myid, int numprocs){
+    // Return 0 if it is the last read
+    char *s = (char *)malloc(sizeof(char)*BLK);
+    int len;
+    int cnt=0;
+    int string_cnt=0;
+    int total_string_cnt=0;
+    long int seq_pointer = 0;
+
+    while (fgets(s, BLK, fp) != NULL) { // Feed a string of size BLK from fp into string s
+        if(s[0] == '>'){
+            seq_start_pointers[cnt] = seq_pointer;
+            seq_lens[cnt] = string_cnt;
+            total_string_cnt += string_cnt;
+            cnt++;
+            string_cnt=0;
+        } else {
+            // Feed the string
+            for(int i=0; s[i]!='\0' && s[i]!='\n' && s[i]!='\r'; i++){
+            //for(i=0; s[i]!='\0' && s[i]!='\n'; i++){
+                string_cnt++;
+                if( MAX_INPUT_LENGTH <= string_cnt){
+                    fprintf(stderr, "fatal error: The length %d is tentatively at most %i.\nread ID = %d\nSet MAX_INPUT_LENGTH to a larger value", string_cnt, MAX_INPUT_LENGTH, cnt);
+                    free_global_variables_and_exit();
+                    exit(EXIT_FAILURE);
+                }
+            }
+        }
+        seq_pointer = ftell(fp);
+    }
+
+    seq_lens[cnt] = string_cnt;
+    *total_seqs_len = total_string_cnt;
+    rewind(fp);
+}
+
 int return_all_reads(FILE *fp, Read *readList, int myid, int numprocs){
     // Return 0 if it is the last read
     char *s = (char *)malloc(sizeof(char)*BLK);
@@ -281,8 +317,6 @@ int return_all_reads(FILE *fp, Read *readList, int myid, int numprocs){
             cnt++;
             string_cnt=0;
             for(i=1; s[i]!='\0' && s[i]!='\n' && s[i]!='\r' && i<BLK; i++) {
-                fprintf(stderr, "%d\n", i);
-                fprintf(stderr, "%d\n", cnt);
                 readList[cnt].ID[i-1] = s[i];
             }
             
@@ -313,10 +347,139 @@ int handle_one_file(char *inputFile, int print_alignment, int myid, int numprocs
     //---------------------------------------------------------------------------
     
     malloc_global_variables();
+    int num_sequences;
+    int *start_sequences, *end_sequences, *seq_lens;
+
+    long int *seq_start_pointers;
+    char *s = (char *)malloc(sizeof(char)*BLK);
+    FILE *fp = init_handle_one_file(inputFile);
+    if(myid == 0){
+        // Get the number of sequences in sequences file
+        while (fgets(s, sizeof(s), fp)){
+            if (s[0] == '>'){
+                num_sequences++;
+            }
+        }
+        fprintf(stderr, "number of sequences %d\n", num_sequences);
+        rewind(fp);
+    }
+
+    MPI_Bcast(
+        &num_sequences,
+        1,
+        MPI_INT,
+        0,
+        MPI_COMM_WORLD);
+
+    // Sequences lengths
+    seq_lens = (int *) malloc(num_sequences * sizeof(int));
+    // Sequences start positions in sequences file
+    seq_start_pointers = (long int *) malloc(num_sequences * sizeof(long int));
+
+    // Start sequences for each process
+    start_sequences = (int *) malloc(numprocs * sizeof(int));
+    // End sequences for each process
+    end_sequences = (int *) malloc(numprocs * sizeof(int));
+
+    // Feed each read and try to detect repeats
+    if (myid == 0) {
+        int total_seqs_len;
+        read_sequences(fp, seq_lens, seq_start_pointers, &total_seqs_len, myid, numprocs);
+        long int seq_lens_per_proc = total_seqs_len / numprocs;
+        int current_proc = 0;
+        long int len_acu = 0;
+        
+        for (int seq = 0; seq < num_sequences; seq++) {
+            if (len_acu >= seq_lens_per_proc * current_proc) {
+                if (current_proc == 0) {
+                    end_sequences[numprocs-1] = num_sequences;
+                } else {
+                    end_sequences[current_proc-1] = seq;
+                }
+                start_sequences[current_proc] = seq;
+                current_proc++;
+            }
+            len_acu += seq_lens[seq];
+        }
+    }
+
+    // Broadcast sequences lengths from process 0 to all processes
+    MPI_Bcast(seq_lens, num_sequences, MPI_INT, 0, MPI_COMM_WORLD);
+    // Broadcast sequences start positions in sequences file from process 0 to all processes
+    MPI_Bcast(seq_start_pointers, num_sequences, MPI_LONG, 0, MPI_COMM_WORLD);
+    // Broadcast start sequences from process 0 to all processes
+    MPI_Bcast(start_sequences, numprocs, MPI_INT, 0, MPI_COMM_WORLD);
+    // Broadcast end sequences from process 0 to all processes
+    MPI_Bcast(end_sequences, numprocs, MPI_INT, 0, MPI_COMM_WORLD);
+    
+
+    // Get sequences to do for every process
+    int num_start_seq = start_sequences[myid];
+    int num_end_seq = end_sequences[myid];
+    int current_seq = num_start_seq;
+
+    
+    // Move process to each initial position in file
+    fseek(fp, seq_start_pointers[num_start_seq], SEEK_SET);
+    memset(s, '\0', sizeof(s));
+    int i;
+    int cnt=0;
+    int string_cnt=0;
+    Read currentRead;
+    while (fgets(s, BLK, fp) != NULL && (current_seq <= num_end_seq)) { // Feed a string of size BLK from fp into string s
+        if(s[0] == '>'){
+            if (cnt > 0 ) {
+                for(int j=0; j < currentRead.len; j++) {
+                    orgInputString[j] = currentRead.codedString[j];
+                }
+                handle_one_read(currentRead.ID, currentRead.len, num_sequences, print_alignment);
+                current_seq++;
+            }
+            cnt++;
+            string_cnt=0;
+            for(i=1; s[i]!='\0' && s[i]!='\n' && s[i]!='\r' && i<BLK; i++) {
+                currentRead.ID[i-1] = s[i];
+            }
+            currentRead.ID[i-1] = '\0';
+        } else {
+            // Feed the string
+            for(i=0; s[i]!='\0' && s[i]!='\n' && s[i]!='\r'; i++){
+                currentRead.codedString[string_cnt++] = char2int(s[i]);
+                if( MAX_INPUT_LENGTH <= string_cnt){
+                    fprintf(stderr, "fatal error: The length %d is tentatively at most %i.\nread ID = %s\nSet MAX_INPUT_LENGTH to a larger value", string_cnt, MAX_INPUT_LENGTH, currentRead.ID);
+                    free_global_variables_and_exit();
+                    exit(EXIT_FAILURE);
+                }
+            }
+            currentRead.len = string_cnt;
+
+        }
+    }
+
+    for(int j=0; j < currentRead.len+1; j++)
+    {
+        orgInputString[j] = currentRead.codedString[j];
+    }
+    
+    
+    handle_one_read(currentRead.ID, currentRead.len, num_sequences, print_alignment);
+
+    fclose(fp);
+    
+    free_global_variables();
+    return(tmp_read_cnt);
+}
+
+
+int handle_one_file_old(char *inputFile, int print_alignment, int myid, int numprocs){
+    //---------------------------------------------------------------------------
+    // Feed a string from a file, convert the string into a series of integers
+    //---------------------------------------------------------------------------
+    
+    malloc_global_variables();
     Read *currentRead = malloc(sizeof(Read));
     int read_count;
     Read *readList;
-//    if( readList == NULL ){ free_global_variables_and_exit(); }
     
     MPI_Datatype readType;
     MPI_Datatype readTypes[3] = { MPI_INT, MPI_INT, MPI_CHAR };

@@ -205,9 +205,7 @@ void handle_one_TR(char *readID, int inputLen, int print_alignment){
     
     struct timeval s_time_range, e_time_range;
     gettimeofday(&s_time_range, NULL);
-    
-    fill_directional_index_with_end(DI_array_length, inputLen, random_string_length);
-    
+    fill_directional_index_with_end(DI_array_length, inputLen, random_string_length, readID);
     gettimeofday(&e_time_range, NULL);
     time_range += (e_time_range.tv_sec - s_time_range.tv_sec) + (e_time_range.tv_usec - s_time_range.tv_usec)*1.0E-6;
     
@@ -231,9 +229,8 @@ void handle_one_TR(char *readID, int inputLen, int print_alignment){
             // Move onto de Bruijn graph construction
             int width     = directional_index_w[query_start];
             clear_rr(tmp_rr);
-            
+
             find_tandem_repeat( query_start, query_end, width, readID, inputLen, tmp_rr );
-            
             query_counter++;
             // Examine if a qualified TR is found
             if( tmp_rr->repeat_len > 0 &&

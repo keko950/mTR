@@ -129,7 +129,7 @@ typedef struct {        // MAX_ID_LENGTH + MAX_EPRIOD + 28*4 = 612 bytes
 
 int handle_one_file(char *inputFile, int print_alignment, int myid, int numprocs);
 void handle_one_read( char *readID, int inputLen, int read_cnt, int print_alignment);
-void fill_directional_index_with_end(int DI_array_length, int inputLen, int random_string_length);
+void fill_directional_index_with_end(int DI_array_length, int inputLen, int random_string_length, char *readID);
 void init_inputString(int k, int query_start, int query_end, int inputLen);
 
 int search_De_Bruijn_graph(int query_start, int query_end, repeat_in_read *rr);

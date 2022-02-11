@@ -134,7 +134,7 @@ double DI_index(int *vector0, int *vector1, int *vector2, int k){
     #define random_base() ((int)(rand()%4))
 #endif
 
-void init_inputString_surrounded_by_random_seq(int k, int inputLen, int random_string_length){
+void init_inputString_surrounded_by_random_seq(int k, int inputLen, int random_string_length, char *readID){
     
 #ifdef USE_MT_RANDOM_NUMBER
     init_genrand(0);
@@ -168,7 +168,7 @@ void init_inputString_surrounded_by_random_seq(int k, int inputLen, int random_s
     }
 }
 
-void fill_directional_index_Manhattan(int DI_array_length, int w, int k, int inputLen, int random_string_length){
+void fill_directional_index_Manhattan(int DI_array_length, int w, int k, int inputLen, int random_string_length, char *readID){
     // We use inputLen and random_string_length for analyzing patterns of DI and Pearson's CC only.
     
     for(int i=0; i<DI_array_length; i++){
@@ -464,7 +464,7 @@ float min_max_DI(int w){
     */
 }
 
-void put_local_maximum_into_directional_index(int DI_array_length, int w){
+void put_local_maximum_into_directional_index(int DI_array_length, int w, char *readID){
     // Search for local maximums
     double local_max = -1;  // Set it to the mimimum -1
     int   local_max_i = -1;
@@ -546,7 +546,7 @@ void remove_redundant_ranges(int inputLen){
 }
 
 
-void fill_directional_index_with_end(int DI_array_length, int inputLen, int random_string_length){
+void fill_directional_index_with_end(int DI_array_length, int inputLen, int random_string_length, char *readID){
     
     // initialize directional _index
     for(int i=0; i<DI_array_length; i++){
@@ -568,17 +568,16 @@ void fill_directional_index_with_end(int DI_array_length, int inputLen, int rand
         }else{
             max_w = MAX_WINDOW;
         }
-        
-        init_inputString_surrounded_by_random_seq(k, inputLen, random_string_length);
+        init_inputString_surrounded_by_random_seq(k, inputLen, random_string_length, readID);
         // Put random sequences of the input length before and after the input string
         for(int w = min_w; w <= max_w && w < inputLen/2; w = 2 * w)
         {
             if(Manhattan_Distance == 1){
-                fill_directional_index_Manhattan( DI_array_length, w, k, inputLen, random_string_length);
+                fill_directional_index_Manhattan( DI_array_length, w, k, inputLen, random_string_length, readID);
             }else{
                 fill_directional_index_PCC( DI_array_length, w, k, inputLen, random_string_length);
             }
-            put_local_maximum_into_directional_index( DI_array_length, w );
+            put_local_maximum_into_directional_index( DI_array_length, w, readID );
         }
     }
     
