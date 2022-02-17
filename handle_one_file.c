@@ -349,9 +349,10 @@ int handle_one_file(char *inputFile, int print_alignment, int myid, int numprocs
     malloc_global_variables();
     int num_sequences;
     int *start_sequences, *end_sequences, *seq_lens;
-
+    long int *out_ptrs = (long int *) malloc(numprocs * sizeof(long int));
     long int *seq_start_pointers;
     char *s = (char *)malloc(sizeof(char)*BLK);
+    
     FILE *fp = init_handle_one_file(inputFile);
     if(myid == 0){
         // Get the number of sequences in sequences file
@@ -425,14 +426,21 @@ int handle_one_file(char *inputFile, int print_alignment, int myid, int numprocs
     int i;
     int cnt=0;
     int string_cnt=0;
+
+    char output_filename[4096] = "";
+    sprintf(output_filename, "result-%d.txt", myid);
+    FILE *output_file = fopen(output_filename, "w+");
+
+    srand(myid);
+
     Read currentRead;
-    while (fgets(s, BLK, fp) != NULL && (current_seq <= num_end_seq)) { // Feed a string of size BLK from fp into string s
+    while (fgets(s, BLK, fp) != NULL && (current_seq < num_end_seq)) { // Feed a string of size BLK from fp into string s
         if(s[0] == '>'){
             if (cnt > 0 ) {
                 for(int j=0; j < currentRead.len; j++) {
                     orgInputString[j] = currentRead.codedString[j];
                 }
-                handle_one_read(currentRead.ID, currentRead.len, num_sequences, print_alignment);
+                handle_one_read(currentRead.ID, currentRead.len, num_sequences, print_alignment, myid, output_file);
                 current_seq++;
             }
             cnt++;
@@ -456,89 +464,44 @@ int handle_one_file(char *inputFile, int print_alignment, int myid, int numprocs
         }
     }
 
-    for(int j=0; j < currentRead.len+1; j++)
-    {
-        orgInputString[j] = currentRead.codedString[j];
-    }
-    
-    
-    handle_one_read(currentRead.ID, currentRead.len, num_sequences, print_alignment);
-
-    fclose(fp);
-    
-    free_global_variables();
-    return(tmp_read_cnt);
-}
-
-
-int handle_one_file_old(char *inputFile, int print_alignment, int myid, int numprocs){
-    //---------------------------------------------------------------------------
-    // Feed a string from a file, convert the string into a series of integers
-    //---------------------------------------------------------------------------
-    
-    malloc_global_variables();
-    Read *currentRead = malloc(sizeof(Read));
-    int read_count;
-    Read *readList;
-    
-    MPI_Datatype readType;
-    MPI_Datatype readTypes[3] = { MPI_INT, MPI_INT, MPI_CHAR };
-    int blocklen[3] = { 1, MAX_INPUT_LENGTH, MAX_ID_LENGTH };
-
-    MPI_Aint displacements[3];
-    Read dummy_read;
-    MPI_Aint base_address;
-    MPI_Get_address(&dummy_read, &base_address);
-    MPI_Get_address(&dummy_read.len, &displacements[0]);
-    MPI_Get_address(&dummy_read.codedString[0], &displacements[1]);
-    MPI_Get_address(&dummy_read.ID[0], &displacements[2]);
-    displacements[0] = MPI_Aint_diff(displacements[0], base_address);
-    displacements[1] = MPI_Aint_diff(displacements[1], base_address);
-    displacements[2] = MPI_Aint_diff(displacements[2], base_address);
-
-    MPI_Type_create_struct(3, blocklen, displacements, readTypes, &readType);
-    MPI_Type_commit(&readType);
-
-    FILE *fp = init_handle_one_file(inputFile);
-    // Feed each read and try to detect repeats
-    if (myid == 0) {
-        readList = malloc(sizeof(Read) * MAX_SEQ_INPUT);
-        read_count = return_all_reads(fp, readList, myid, numprocs);
-    }
-    if (numprocs > 1) {
-        MPI_Bcast(
-            &read_count,
-            1,
-            MPI_INT,
-            0,
-            MPI_COMM_WORLD);
-
-        if (myid != 0) {
-            readList = malloc(sizeof(Read) * (read_count / numprocs));
+    if (myid == numprocs - 1) {
+        for(int j=0; j < currentRead.len; j++) {
+            orgInputString[j] = currentRead.codedString[j];
         }
-
-        MPI_Scatter(
-            readList,
-            read_count / numprocs,
-            readType,
-            readList,
-            read_count / numprocs,
-            readType,
-            0,
-            MPI_COMM_WORLD);
-    }
-
-    fprintf(stderr, "%d \n",read_count / numprocs);
-    for (int i=0; i < read_count / numprocs; i++) {
-        for(int j=0; j < readList[i].len; j++)
-            orgInputString[j] = readList[i].codedString[j];
-        handle_one_read(readList[i].ID, readList[i].len, read_count, print_alignment);
+        handle_one_read(currentRead.ID, currentRead.len, num_sequences, print_alignment, myid, output_file);
+        current_seq++;
     }
 
     fclose(fp);
+    long int out_seq_ptr = 0;
+    int current_proc = 0;
+    char *result_filename = "result.txt";
+    out_ptrs = (long int *) malloc(numprocs * sizeof(long int));
+    MPI_Barrier(MPI_COMM_WORLD);
+
+    long int seq_pointer = ftell(output_file);
+    rewind(output_file);
+    MPI_Allgather(&seq_pointer, 1, MPI_LONG, out_ptrs, 1, MPI_LONG, MPI_COMM_WORLD);
     
+    for(current_proc = 0; current_proc < myid; current_proc++){
+        out_seq_ptr += out_ptrs[current_proc];
+    }
+    
+
+    MPI_File result_file;
+    MPI_File_open(MPI_COMM_WORLD, result_filename, MPI_MODE_CREATE | MPI_MODE_WRONLY, MPI_INFO_NULL, &result_file);
+    MPI_File_seek(result_file, out_seq_ptr, MPI_SEEK_SET);
+    while(fgets(s, BLK, output_file) != NULL) {
+        MPI_File_write(result_file, s, strlen(s), MPI_CHAR, MPI_STATUS_IGNORE);
+    }
+    MPI_File_close(&result_file);
+
+    fclose(output_file);
     free_global_variables();
-    free(readList);
-    free(currentRead);
+    free(out_ptrs);
+    free(seq_start_pointers);
+    free(start_sequences);
+    free(end_sequences);
+    free(seq_lens);
     return(tmp_read_cnt);
 }

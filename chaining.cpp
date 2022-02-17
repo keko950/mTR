@@ -31,6 +31,7 @@
 #include <stdio.h>
 #include <iostream>
 #include <set>
+#include <vector>
 #include <map>
 #include <string.h>
 using namespace std;
@@ -64,6 +65,8 @@ public:
     int     indel_penalty;
     char    *string;
     int     *string_score;
+    int     numproc;
+    FILE    *f;
 
     Alignment(char* a_readID,
               int   a_inputLen,
@@ -81,7 +84,10 @@ public:
               int   a_mismatch_penalty,
               int   a_indel_penalty,
               char* a_string,
-              int*  a_string_score)
+              int*  a_string_score,
+              int   a_numproc,
+              FILE  *a_f
+              )
     {
         readID      = new char[BLK];
         string      = new char[BLK];
@@ -94,6 +100,8 @@ public:
 		initial_score   = a_Num_matches;
 		score	        = a_Num_matches;
 		predecessor	= NULL;
+        numproc = a_numproc;
+        f = a_f;
     
         strcpy( readID, a_readID );
         inputLen    = a_inputLen;
@@ -123,8 +131,7 @@ public:
     }
     
     void print_one_TR(int print_alignment)const{
-        
-        printf(
+        fprintf(f,
            "%.50s\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%f\t%d\t%d\t%d\t%s\n",
            readID,
            inputLen,
@@ -197,7 +204,7 @@ public:
 	}
 };
 
-set<Alignment*> set_of_alignments;
+vector<Alignment*> set_of_alignments;
 
 void insert_an_alignment_into_set(
                       char* readID,
@@ -216,9 +223,12 @@ void insert_an_alignment_into_set(
                       int   mismatch_penalty,
                       int   indel_penalty,
                       char* string,
-                      int*  string_score)
+                      int*  string_score,
+                      int   numproc,
+                      FILE  *f
+                      )
 {
-    set_of_alignments.insert(
+    set_of_alignments.push_back(
                       new Alignment(
                             readID,
                             inputLen,
@@ -236,10 +246,12 @@ void insert_an_alignment_into_set(
                             mismatch_penalty,
                             indel_penalty,
                             string,
-                            string_score));
+                            string_score,
+                            numproc,
+                            f));
 }
 
-void chaining(int print_alignment){
+void chaining(int print_alignment, char* readID){
     if(set_of_alignments.empty()){
         return;
     }
@@ -247,7 +259,7 @@ void chaining(int print_alignment){
     multimap<int, Alignment*> sorted_by_Y;
     
     // Sort alignments with their start and end positions
-    for(set<Alignment*>::iterator iter = set_of_alignments.begin();
+    for(vector<Alignment*>::iterator iter = set_of_alignments.begin();
         iter != set_of_alignments.end();
         iter++)
     {
@@ -289,8 +301,8 @@ void chaining(int print_alignment){
             if(sorted_by_Y.empty()){
                 sorted_by_Y.insert(make_pair(tmpX_alignment->end_y, tmpX_alignment));
 #ifdef DEBUG_chaining
-                cout << "insert\t";
-                tmpX_alignment->print_one_TR(print_alignment);
+                    cout << "insert empty\t";
+                    tmpX_alignment->print_one_TR(print_alignment);
 #endif
             }else{
                 bool flag = true;   // flag for indicating that tmpX_alignment should be inserted
@@ -308,8 +320,8 @@ void chaining(int print_alignment){
                 if(flag){
                     sorted_by_Y.insert(make_pair(tmpX_alignment->end_y, tmpX_alignment));
 #ifdef DEBUG_chaining
-                    cout << "insert\t";
-                    tmpX_alignment->print_one_TR(print_alignment);
+                        cout << "insert flag\t";
+                        tmpX_alignment->print_one_TR(print_alignment);
 #endif
                     // Delete unnecessary alignments
                     for(tmpY = sorted_by_Y.begin();
@@ -355,7 +367,7 @@ void chaining(int print_alignment){
         iter != sorted_by_Y.end();){
         iter = sorted_by_Y.erase(iter);
     }
-    for(set<Alignment*>::iterator iter = set_of_alignments.begin();
+    for(vector<Alignment*>::iterator iter = set_of_alignments.begin();
         iter != set_of_alignments.end();){
         // delete all elements of Alignment
         Alignment *tmp = (*iter);
@@ -364,4 +376,3 @@ void chaining(int print_alignment){
             
     }
 }
-

@@ -153,7 +153,7 @@ void find_tandem_repeat(int query_start, int query_end, int w, char *readID, int
     }
 }
 
-void insert_an_alignment(repeat_in_read rr){
+void insert_an_alignment(repeat_in_read rr, int numproc, FILE *f){
     insert_an_alignment_into_set(
                                  rr.readID,
                                  rr.inputLen,
@@ -171,7 +171,9 @@ void insert_an_alignment(repeat_in_read rr){
                                  rr.mismatch_penalty,
                                  rr.indel_penalty,
                                  rr.string,
-                                 rr.string_score
+                                 rr.string_score,
+                                 numproc,
+                                 f
                                  );
 }
 
@@ -187,7 +189,7 @@ void remove_redundant_ranges_from_directional_index(int query_start, int query_e
     }
 }
 
-void handle_one_TR(char *readID, int inputLen, int print_alignment){
+void handle_one_TR(char *readID, int inputLen, int print_alignment, int numproc, FILE *f){
     //
     // Locate overlapping regions of tandem repeats
     //
@@ -214,14 +216,13 @@ void handle_one_TR(char *readID, int inputLen, int print_alignment){
     //
     struct timeval s_time, e_time;
     gettimeofday(&s_time, NULL);
-    
+    int insert_pos = 0;
     repeat_in_read *tmp_rr;
     tmp_rr = (repeat_in_read*) malloc(sizeof(repeat_in_read));
     if(tmp_rr == NULL){
         fprintf(stderr, "cannot allocate space for tmp_rr.\n");
         exit(EXIT_FAILURE);
     }
-    
     for(int query_start=0; query_start < inputLen; query_start++){
         int query_end = directional_index_end[query_start];
         if(-1 < query_end && query_end < inputLen)
@@ -229,14 +230,14 @@ void handle_one_TR(char *readID, int inputLen, int print_alignment){
             // Move onto de Bruijn graph construction
             int width     = directional_index_w[query_start];
             clear_rr(tmp_rr);
-
             find_tandem_repeat( query_start, query_end, width, readID, inputLen, tmp_rr );
             query_counter++;
             // Examine if a qualified TR is found
             if( tmp_rr->repeat_len > 0 &&
                 tmp_rr->rep_start + MIN_PERIOD * MIN_NUM_FREQ_UNIT < tmp_rr->rep_end )
             {
-                insert_an_alignment(*tmp_rr);
+                insert_an_alignment(*tmp_rr, numproc, f);
+                insert_pos++;
                 remove_redundant_ranges_from_directional_index(tmp_rr->rep_start, tmp_rr->rep_end);
             }
         }
@@ -246,7 +247,7 @@ void handle_one_TR(char *readID, int inputLen, int print_alignment){
     struct timeval s_time_chaining, e_time_chaining;
     gettimeofday(&s_time_chaining, NULL);
     
-    chaining(print_alignment);
+    chaining(print_alignment, readID);
     
     gettimeofday(&e_time_chaining, NULL);
     time_chaining += (e_time_chaining.tv_sec - s_time_chaining.tv_sec) + (e_time_chaining.tv_usec - s_time_chaining.tv_usec)*1.0E-6;
@@ -257,7 +258,7 @@ void handle_one_TR(char *readID, int inputLen, int print_alignment){
     
 }
 
-void handle_one_read(char *readID, int inputLen, int read_cnt, int print_alignment)
+void handle_one_read(char *readID, int inputLen, int read_cnt, int print_alignment, int numproc, FILE *f)
 {
-    handle_one_TR(readID, inputLen, print_alignment);
+    handle_one_TR(readID, inputLen, print_alignment, numproc, f);
 }

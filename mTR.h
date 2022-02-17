@@ -128,7 +128,7 @@ typedef struct {        // MAX_ID_LENGTH + MAX_EPRIOD + 28*4 = 612 bytes
 #define DIFF(x, y) ((x) > (y) ? ((x) - (y)) : ((y) - (x)))
 
 int handle_one_file(char *inputFile, int print_alignment, int myid, int numprocs);
-void handle_one_read( char *readID, int inputLen, int read_cnt, int print_alignment);
+void handle_one_read( char *readID, int inputLen, int read_cnt, int print_alignment, int numproc, FILE *f);
 void fill_directional_index_with_end(int DI_array_length, int inputLen, int random_string_length, char *readID);
 void init_inputString(int k, int query_start, int query_end, int inputLen);
 
@@ -169,8 +169,10 @@ extern "C" {
                           int   mismatch_penalty,
                           int   indel_penalty,
                           char* string,
-                          int*  string_score);
-    void chaining(int print_alignment);
+                          int*  string_score,
+                          int   numproc,
+                          FILE  *f);
+    void chaining(int print_alignment, char* readID);
     extern void pretty_print_alignment(char *unit_string, int unit_len, int rep_start, int rep_end, int match_gain, int mismatch_penalty, int indel_penalty);
     extern void print_freq(int rep_start, int rep_end, int rep_period, char* string, int inputLen, int k);
 #ifdef __cplusplus
