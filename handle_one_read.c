@@ -206,8 +206,7 @@ void handle_one_TR(char *readID, int inputLen, int print_alignment){
     struct timeval s_time_range, e_time_range;
     gettimeofday(&s_time_range, NULL);
     
-    fill_directional_index_with_end(DI_array_length, inputLen, random_string_length);
-    
+    fill_directional_index_with_end(DI_array_length, inputLen, random_string_length, readID);
     gettimeofday(&e_time_range, NULL);
     time_range += (e_time_range.tv_sec - s_time_range.tv_sec) + (e_time_range.tv_usec - s_time_range.tv_usec)*1.0E-6;
     
@@ -231,9 +230,7 @@ void handle_one_TR(char *readID, int inputLen, int print_alignment){
             // Move onto de Bruijn graph construction
             int width     = directional_index_w[query_start];
             clear_rr(tmp_rr);
-            
             find_tandem_repeat( query_start, query_end, width, readID, inputLen, tmp_rr );
-            
             query_counter++;
             // Examine if a qualified TR is found
             if( tmp_rr->repeat_len > 0 &&
@@ -241,6 +238,31 @@ void handle_one_TR(char *readID, int inputLen, int print_alignment){
             {
                 insert_an_alignment(*tmp_rr);
                 remove_redundant_ranges_from_directional_index(tmp_rr->rep_start, tmp_rr->rep_end);
+                if (readID[0] == '9' && readID[1] == '2'){
+                    // for (int z = 0; z < DI_array_length; z++) {
+                    //     fprintf(stderr, "%d", directional_index_end[z]);
+                    // }
+                    // fprintf(stderr, "\n");
+                    //fprintf(stderr, "Num_mismatches %d\n repeat_len %d\n rep_end %d\n, rep_start %d\n query_start %d\n query_end %d\n width %d\n", tmp_rr->Num_mismatches ,tmp_rr->repeat_len, tmp_rr->rep_end, tmp_rr->rep_start, query_start, query_end, width );
+                fprintf(stderr, "query start %d\t query end %d\t input_len %d\t ", query_start, query_end, inputLen);
+                fprintf(stderr, "\n");
+                    fprintf(stderr, 
+                        "%.50s\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%f\t%d\t%d\t%d\t%s\n",
+                                readID,
+                                tmp_rr->inputLen,
+                                tmp_rr->rep_start+1, // 1-origin
+                                tmp_rr->rep_end+1,   // 1-origin
+                                tmp_rr->repeat_len,
+                                tmp_rr->rep_period,
+                                tmp_rr->Num_freq_unit,
+                                tmp_rr->Num_matches,
+                                (float)tmp_rr->Num_matches/tmp_rr->repeat_len,
+                                tmp_rr->Num_mismatches,
+                                tmp_rr->Num_insertions,
+                                tmp_rr->Num_deletions,
+                                tmp_rr->string);
+                    fprintf(stderr, "\n");
+                }
             }
         }
     }
@@ -249,7 +271,7 @@ void handle_one_TR(char *readID, int inputLen, int print_alignment){
     struct timeval s_time_chaining, e_time_chaining;
     gettimeofday(&s_time_chaining, NULL);
     
-    chaining(print_alignment);
+    chaining(print_alignment, readID);
     
     gettimeofday(&e_time_chaining, NULL);
     time_chaining += (e_time_chaining.tv_sec - s_time_chaining.tv_sec) + (e_time_chaining.tv_usec - s_time_chaining.tv_usec)*1.0E-6;

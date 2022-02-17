@@ -31,6 +31,7 @@
 #include <stdio.h>
 #include <iostream>
 #include <set>
+#include <vector>
 #include <map>
 #include <string.h>
 using namespace std;
@@ -123,7 +124,6 @@ public:
     }
     
     void print_one_TR(int print_alignment)const{
-        
         printf(
            "%.50s\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%f\t%d\t%d\t%d\t%s\n",
            readID,
@@ -197,7 +197,7 @@ public:
 	}
 };
 
-set<Alignment*> set_of_alignments;
+vector<Alignment*> set_of_alignments;
 
 void insert_an_alignment_into_set(
                       char* readID,
@@ -218,7 +218,7 @@ void insert_an_alignment_into_set(
                       char* string,
                       int*  string_score)
 {
-    set_of_alignments.insert(
+    set_of_alignments.push_back(
                       new Alignment(
                             readID,
                             inputLen,
@@ -239,7 +239,7 @@ void insert_an_alignment_into_set(
                             string_score));
 }
 
-void chaining(int print_alignment){
+void chaining(int print_alignment, char* readID){
     if(set_of_alignments.empty()){
         return;
     }
@@ -247,7 +247,7 @@ void chaining(int print_alignment){
     multimap<int, Alignment*> sorted_by_Y;
     
     // Sort alignments with their start and end positions
-    for(set<Alignment*>::iterator iter = set_of_alignments.begin();
+    for(vector<Alignment*>::iterator iter = set_of_alignments.begin();
         iter != set_of_alignments.end();
         iter++)
     {
@@ -289,8 +289,10 @@ void chaining(int print_alignment){
             if(sorted_by_Y.empty()){
                 sorted_by_Y.insert(make_pair(tmpX_alignment->end_y, tmpX_alignment));
 #ifdef DEBUG_chaining
-                cout << "insert\t";
-                tmpX_alignment->print_one_TR(print_alignment);
+                if (readID[0] == '9' && readID[1] == '2'){
+                    cout << "insert empty\t";
+                    tmpX_alignment->print_one_TR(print_alignment);
+                }
 #endif
             }else{
                 bool flag = true;   // flag for indicating that tmpX_alignment should be inserted
@@ -308,8 +310,11 @@ void chaining(int print_alignment){
                 if(flag){
                     sorted_by_Y.insert(make_pair(tmpX_alignment->end_y, tmpX_alignment));
 #ifdef DEBUG_chaining
-                    cout << "insert\t";
-                    tmpX_alignment->print_one_TR(print_alignment);
+                    if (readID[0] == '9' && readID[1] == '2'){
+                        cout << "insert flag\t";
+                        tmpX_alignment->print_one_TR(print_alignment);
+                    }
+
 #endif
                     // Delete unnecessary alignments
                     for(tmpY = sorted_by_Y.begin();
@@ -319,7 +324,8 @@ void chaining(int print_alignment){
                            tmpY->second->score < tmpX_alignment->score)
                         {
 #ifdef DEBUG_chaining
-                            cout << "delete\t"; tmpY->second->print_one_TR(print_alignment);
+                            if (readID[0] == '9' && readID[1] == '2')
+                                cout << "delete\t"; tmpY->second->print_one_TR(print_alignment);
 #endif
                             tmpY = sorted_by_Y.erase(tmpY);
                         } else {
@@ -355,7 +361,7 @@ void chaining(int print_alignment){
         iter != sorted_by_Y.end();){
         iter = sorted_by_Y.erase(iter);
     }
-    for(set<Alignment*>::iterator iter = set_of_alignments.begin();
+    for(vector<Alignment*>::iterator iter = set_of_alignments.begin();
         iter != set_of_alignments.end();){
         // delete all elements of Alignment
         Alignment *tmp = (*iter);
@@ -364,4 +370,3 @@ void chaining(int print_alignment){
             
     }
 }
-

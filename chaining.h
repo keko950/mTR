@@ -26,7 +26,6 @@ The views and conclusions contained in the software and documentation are those
 of the authors and should not be interpreted as representing official policies,
 either expressed or implied, of the FreeBSD Project.
 */
-
 #ifdef __cplusplus
 extern "C" {
     void construct_set_of_alignments();
@@ -48,7 +47,7 @@ extern "C" {
                           int   indel_penalty,
                           char* string,
                           int*  string_score);
-    void chaining(int print_alignment);
+    void chaining(int print_alignment, char* readID);
     void delete_set_of_alignments();
     extern void pretty_print_alignment(char *unit_string, int unit_len, int rep_start, int rep_end, int match_gain, int mismatch_penalty, int indel_penalty);
     extern void print_freq(int rep_start, int rep_end, int rep_period, char* string, int inputLen, int k);
