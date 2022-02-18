@@ -123,7 +123,7 @@ typedef struct {        // MAX_ID_LENGTH + MAX_EPRIOD + 28*4 = 612 bytes
 #define MAX(a, b) ((a) > (b) ? (a) : (b))
 #define DIFF(x, y) ((x) > (y) ? ((x) - (y)) : ((y) - (x)))
 
-int handle_one_file(char *inputFile, int print_alignment);
+int handle_one_file(char *inputFile, int print_alignment, int numprocs, int* sequence_list);
 void handle_one_read( char *readID, int inputLen, int read_cnt, int print_alignment);
 void fill_directional_index_with_end(int DI_array_length, int inputLen, int random_string_length, char *readID);
 void init_inputString(int k, int query_start, int query_end, int inputLen);

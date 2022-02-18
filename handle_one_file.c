@@ -268,7 +268,7 @@ void return_one_read(FILE *fp, Read *currentRead){
     }
 }
 
-int handle_one_file(char *inputFile, int print_alignment){
+int handle_one_file(char *inputFile, int print_alignment, int numprocs, int *sequence_list){
     //---------------------------------------------------------------------------
     // Feed a string from a file, convert the string into a series of integers
     //---------------------------------------------------------------------------
@@ -279,22 +279,33 @@ int handle_one_file(char *inputFile, int print_alignment){
     FILE *fp = init_handle_one_file(inputFile);
     // Feed each read and try to detect repeats
     int counter = 0;
-    srand(0);
-    for(;;){
-        return_one_read(fp, currentRead);
-        if (counter == 26)
-            srand(1);
-        if (counter == 51)
-            srand(2);
-        if (counter == 76)
-            srand(3);
-        if(currentRead->len == 0) break;
-        for(int i=0; i<currentRead->len; i++) {
-            orgInputString[i] = currentRead->codedString[i];
-        }            
-        handle_one_read(currentRead->ID, currentRead->len, tmp_read_cnt, print_alignment);
-        counter++;
+    if (numprocs > 1) {
+        srand(0);
+        for(;;){
+            return_one_read(fp, currentRead);
+            for (int j = 1; j < numprocs; j++) {
+                if (counter == sequence_list[j])
+                    srand(j);
+            }
+            if(currentRead->len == 0) break;
+            for(int i=0; i<currentRead->len; i++) {
+                orgInputString[i] = currentRead->codedString[i];
+            }            
+            handle_one_read(currentRead->ID, currentRead->len, tmp_read_cnt, print_alignment);
+            counter++;
+        }
+    } else {
+        for(;;){
+            return_one_read(fp, currentRead);
+            if(currentRead->len == 0) break;
+            for(int i=0; i<currentRead->len; i++) {
+                orgInputString[i] = currentRead->codedString[i];
+            }            
+            handle_one_read(currentRead->ID, currentRead->len, tmp_read_cnt, print_alignment);
+            counter++;
+        }
     }
+
     fclose(fp);
     
     free_global_variables();

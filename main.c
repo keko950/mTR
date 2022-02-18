@@ -43,6 +43,9 @@ void print_error_message(){
     fprintf(stderr, "-c: Print the computation time of each step.\n");
     fprintf(stderr, "-m ratio: Give a minimum match ratio ranging from 0 to 1.\n");
     fprintf(stderr, "-p: Use Pearson's correlation coefficient distance in place of Manhattan distance.\n");
+    fprintf(stderr, "-n: number of process.\n");
+    fprintf(stderr, "-s: sequences.\n");
+    fprintf(stderr, "-f: filename.\n");
 }
 
 int main(int argc, char *argv[])
@@ -56,7 +59,11 @@ int main(int argc, char *argv[])
     Manhattan_Distance = 1;
     
     int opt;
-    while ((opt = getopt(argc, argv, "acm:p")) != -1) {
+    int sequences = 0;
+    int numprocs = 1;
+    int *sequence_list;
+    int debug = 0;
+    while ((opt = getopt(argc, argv, "acm:pd")) != -1) {
         switch(opt){
             case 'a':
                 print_alignment = 1;
@@ -77,6 +84,9 @@ int main(int argc, char *argv[])
                 Manhattan_Distance = 0;
                 fprintf(stderr, "Pearson's correlation coefficient distance in place of Manhattan distance.\n");
                 break;
+            case 'd':
+                debug = 1;
+                break;
             default:
                 print_error_message();
                 exit(EXIT_FAILURE);
@@ -87,6 +97,17 @@ int main(int argc, char *argv[])
         exit(EXIT_FAILURE);
     }
     inputFile = argv[optind];
+
+    if (debug) {
+        fprintf(stderr, "How many processes want to simulate?\n");
+        scanf("%d", &numprocs);
+
+        sequence_list = (int*) malloc(sizeof(int) * numprocs);
+        fprintf(stderr, "Write down now the start sequence id of every process (separated by space)\n");
+        for(int i=0;i<numprocs;i++)
+            scanf("%d", &sequence_list[i]);
+    }
+
     //fprintf(stderr, "The input file name is %s.\n", inputFile);
     
     // Process one file to associate reads with tandem repeats
@@ -100,7 +121,7 @@ int main(int argc, char *argv[])
     struct timeval s, e;
     gettimeofday(&s, NULL);
     
-    int read_cnt = handle_one_file(inputFile, print_alignment);
+    int read_cnt = handle_one_file(inputFile, print_alignment, numprocs, sequence_list);
     
     gettimeofday(&e, NULL);
     time_all = (e.tv_sec - s.tv_sec) + (e.tv_usec - s.tv_usec)*1.0E-6;
