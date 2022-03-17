@@ -105,13 +105,13 @@ int main(int argc, char *argv[])
     struct timeval s, e;
     gettimeofday(&s, NULL);
     
-    int read_cnt = handle_one_file(inputFile, print_alignment, myid, numprocs);
+    int read_cnt = handle_one_file(inputFile, print_alignment, myid, numprocs, print_computation_time);
     
     gettimeofday(&e, NULL);
     time_all = (e.tv_sec - s.tv_sec) + (e.tv_usec - s.tv_usec)*1.0E-6;
     
     if(print_computation_time){
-        fprintf(stderr, "Computation time\n");
+        fprintf(stderr, "Computation time %d\n", myid);
 
         fprintf(stderr, "%f\tall\n",           time_all);
         fprintf(stderr, "%f\tallocating memory\n", time_memory);

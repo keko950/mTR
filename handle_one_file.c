@@ -341,7 +341,7 @@ int return_all_reads(FILE *fp, Read *readList, int myid, int numprocs){
 }
 
 
-int handle_one_file(char *inputFile, int print_alignment, int myid, int numprocs){
+int handle_one_file(char *inputFile, int print_alignment, int myid, int numprocs, int print_computation_time){
     //---------------------------------------------------------------------------
     // Feed a string from a file, convert the string into a series of integers
     //---------------------------------------------------------------------------
@@ -352,7 +352,11 @@ int handle_one_file(char *inputFile, int print_alignment, int myid, int numprocs
     long int *out_ptrs = (long int *) malloc(numprocs * sizeof(long int));
     long int *seq_start_pointers;
     char *s = (char *)malloc(sizeof(char)*BLK);
-    
+    double handle_read_time, communication_time, program_time;
+    double start, end, all_start, all_end;
+    if (print_computation_time) {
+        all_start = MPI_Wtime();
+    }
     FILE *fp = init_handle_one_file(inputFile);
     if(myid == 0){
         // Get the number of sequences in sequences file
@@ -364,13 +368,20 @@ int handle_one_file(char *inputFile, int print_alignment, int myid, int numprocs
         fprintf(stderr, "number of sequences %d\n", num_sequences);
         rewind(fp);
     }
-
+    if (print_computation_time) {
+        start = MPI_Wtime();
+    }
     MPI_Bcast(
         &num_sequences,
         1,
         MPI_INT,
         0,
         MPI_COMM_WORLD);
+
+    if (print_computation_time) {
+        end = MPI_Wtime();
+        communication_time += end-start;
+    }
 
     // Sequences lengths
     seq_lens = (int *) malloc(num_sequences * sizeof(int));
@@ -404,6 +415,9 @@ int handle_one_file(char *inputFile, int print_alignment, int myid, int numprocs
         }
     }
 
+    if (print_computation_time) {
+        start = MPI_Wtime();
+    }
     // Broadcast sequences lengths from process 0 to all processes
     MPI_Bcast(seq_lens, num_sequences, MPI_INT, 0, MPI_COMM_WORLD);
     // Broadcast sequences start positions in sequences file from process 0 to all processes
@@ -412,7 +426,10 @@ int handle_one_file(char *inputFile, int print_alignment, int myid, int numprocs
     MPI_Bcast(start_sequences, numprocs, MPI_INT, 0, MPI_COMM_WORLD);
     // Broadcast end sequences from process 0 to all processes
     MPI_Bcast(end_sequences, numprocs, MPI_INT, 0, MPI_COMM_WORLD);
-    
+    if (print_computation_time) {
+        end = MPI_Wtime();
+        communication_time += end-start;
+    }
 
     // Get sequences to do for every process
     int num_start_seq = start_sequences[myid];
@@ -434,6 +451,10 @@ int handle_one_file(char *inputFile, int print_alignment, int myid, int numprocs
     srand(myid);
 
     Read currentRead;
+    if (print_computation_time) {
+        start = MPI_Wtime();
+    }
+    //fprintf(stderr, "initial seq for process %d: %d\n", myid, current_seq);
     while (fgets(s, BLK, fp) != NULL && (current_seq < num_end_seq)) { // Feed a string of size BLK from fp into string s
         if(s[0] == '>'){
             if (cnt > 0 ) {
@@ -472,6 +493,11 @@ int handle_one_file(char *inputFile, int print_alignment, int myid, int numprocs
         current_seq++;
     }
 
+    if (print_computation_time) {
+        end = MPI_Wtime();
+        handle_read_time = end-start;
+    }
+
     fclose(fp);
     long int out_seq_ptr = 0;
     int current_proc = 0;
@@ -481,8 +507,17 @@ int handle_one_file(char *inputFile, int print_alignment, int myid, int numprocs
 
     long int seq_pointer = ftell(output_file);
     rewind(output_file);
+
+    if (print_computation_time) {
+        start = MPI_Wtime();
+    }
+
     MPI_Allgather(&seq_pointer, 1, MPI_LONG, out_ptrs, 1, MPI_LONG, MPI_COMM_WORLD);
-    
+
+    if (print_computation_time) {
+        end = MPI_Wtime();
+        communication_time += end-start;
+    }
     for(current_proc = 0; current_proc < myid; current_proc++){
         out_seq_ptr += out_ptrs[current_proc];
     }
@@ -495,6 +530,28 @@ int handle_one_file(char *inputFile, int print_alignment, int myid, int numprocs
         MPI_File_write(result_file, s, strlen(s), MPI_CHAR, MPI_STATUS_IGNORE);
     }
     MPI_File_close(&result_file);
+
+    if (print_computation_time) {
+        all_end = MPI_Wtime();
+        program_time = all_end - all_start;
+    }
+
+    if (print_computation_time) {
+        double avgtime_comm, avgtime_read, avgtime_prg;
+        start = MPI_Wtime();
+        MPI_Reduce(&communication_time, &avgtime_comm, 1, MPI_DOUBLE, MPI_SUM, 0,MPI_COMM_WORLD);
+        MPI_Reduce(&handle_read_time, &avgtime_read, 1, MPI_DOUBLE, MPI_SUM, 0,MPI_COMM_WORLD);
+        MPI_Reduce(&program_time, &avgtime_prg, 1, MPI_DOUBLE, MPI_SUM, 0,MPI_COMM_WORLD);
+        end = MPI_Wtime();
+        
+        if (myid==0) {
+            avgtime_comm += (end-start)/numprocs;
+            fprintf(stderr, "avg. time communications: %f\n", avgtime_comm/numprocs);
+            fprintf(stderr, "avg. time handle read communications: %f\n", avgtime_read/numprocs);
+            fprintf(stderr, "avg. time handle_one_file function: %f\n", avgtime_prg/numprocs);
+        }
+
+    }
 
     fclose(output_file);
     free_global_variables();
