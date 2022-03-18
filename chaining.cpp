@@ -132,7 +132,7 @@ public:
     
     void print_one_TR(int print_alignment)const{
         fprintf(f,
-           "%.50s\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%f\t%d\t%d\t%d\t%s\n",
+           "%.100s\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%f\t%d\t%d\t%d\t%s\n",
            readID,
            inputLen,
            rep_start+1, // 1-origin
