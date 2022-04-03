@@ -352,10 +352,11 @@ int handle_one_file(char *inputFile, int print_alignment, int myid, int numprocs
     long int *out_ptrs = (long int *) malloc(numprocs * sizeof(long int));
     long int *seq_start_pointers;
     char *s = (char *)malloc(sizeof(char)*BLK);
-    double handle_read_time, communication_time, program_time;
+    double handle_read_time, communication_time, program_time, es_time;
     double start, end, all_start, all_end;
     if (print_computation_time) {
         all_start = MPI_Wtime();
+        start = MPI_Wtime();
     }
     FILE *fp = init_handle_one_file(inputFile);
     if(myid == 0){
@@ -369,6 +370,8 @@ int handle_one_file(char *inputFile, int print_alignment, int myid, int numprocs
         rewind(fp);
     }
     if (print_computation_time) {
+        end = MPI_Wtime();
+        es_time += end-start;
         start = MPI_Wtime();
     }
     MPI_Bcast(
@@ -522,7 +525,9 @@ int handle_one_file(char *inputFile, int print_alignment, int myid, int numprocs
         out_seq_ptr += out_ptrs[current_proc];
     }
     
-
+    if (print_computation_time) {
+        start = MPI_Wtime();
+    }
     MPI_File result_file;
     MPI_File_open(MPI_COMM_WORLD, result_filename, MPI_MODE_CREATE | MPI_MODE_WRONLY, MPI_INFO_NULL, &result_file);
     MPI_File_seek(result_file, out_seq_ptr, MPI_SEEK_SET);
@@ -530,16 +535,18 @@ int handle_one_file(char *inputFile, int print_alignment, int myid, int numprocs
         MPI_File_write(result_file, s, strlen(s), MPI_CHAR, MPI_STATUS_IGNORE);
     }
     MPI_File_close(&result_file);
-
     if (print_computation_time) {
+        end = MPI_Wtime();
+        es_time += end-start;
         all_end = MPI_Wtime();
         program_time = all_end - all_start;
     }
 
     if (print_computation_time) {
-        double avgtime_comm, avgtime_read, avgtime_prg;
+        double avgtime_comm, avgtime_read, avgtime_prg, avgtime_es;
         start = MPI_Wtime();
         MPI_Reduce(&communication_time, &avgtime_comm, 1, MPI_DOUBLE, MPI_SUM, 0,MPI_COMM_WORLD);
+        MPI_Reduce(&es_time, &avgtime_es, 1, MPI_DOUBLE, MPI_SUM, 0,MPI_COMM_WORLD);
         MPI_Reduce(&handle_read_time, &avgtime_read, 1, MPI_DOUBLE, MPI_SUM, 0,MPI_COMM_WORLD);
         MPI_Reduce(&program_time, &avgtime_prg, 1, MPI_DOUBLE, MPI_SUM, 0,MPI_COMM_WORLD);
         end = MPI_Wtime();
@@ -547,7 +554,8 @@ int handle_one_file(char *inputFile, int print_alignment, int myid, int numprocs
         if (myid==0) {
             avgtime_comm += (end-start)/numprocs;
             fprintf(stderr, "avg. time communications: %f\n", avgtime_comm/numprocs);
-            fprintf(stderr, "avg. time handle read communications: %f\n", avgtime_read/numprocs);
+            fprintf(stderr, "avg. time handle read: %f\n", avgtime_read/numprocs);
+            fprintf(stderr, "avg. time handle I/O: %f\n", avgtime_es/numprocs);
             fprintf(stderr, "avg. time handle_one_file function: %f\n", avgtime_prg/numprocs);
         }
 
