@@ -345,17 +345,24 @@ int handle_one_file(char *inputFile, int print_alignment, int myid, int numprocs
     //---------------------------------------------------------------------------
     // Feed a string from a file, convert the string into a series of integers
     //---------------------------------------------------------------------------
-    
+    double handle_read_time, communication_time, program_time, es_time, malloc_time, loadbalance_time;
+    double start, end, all_start, all_end;
+
+    if (print_computation_time) {
+        all_start = MPI_Wtime();
+        start = MPI_Wtime();
+    }
+
     malloc_global_variables();
     int num_sequences;
     int *start_sequences, *end_sequences, *seq_lens;
     long int *out_ptrs = (long int *) malloc(numprocs * sizeof(long int));
     long int *seq_start_pointers;
     char *s = (char *)malloc(sizeof(char)*BLK);
-    double handle_read_time, communication_time, program_time, es_time;
-    double start, end, all_start, all_end;
+
     if (print_computation_time) {
-        all_start = MPI_Wtime();
+        end = MPI_Wtime();
+        malloc_time += end-start;
         start = MPI_Wtime();
     }
     FILE *fp = init_handle_one_file(inputFile);
@@ -384,6 +391,7 @@ int handle_one_file(char *inputFile, int print_alignment, int myid, int numprocs
     if (print_computation_time) {
         end = MPI_Wtime();
         communication_time += end-start;
+        start = MPI_Wtime();
     }
 
     // Sequences lengths
@@ -395,6 +403,12 @@ int handle_one_file(char *inputFile, int print_alignment, int myid, int numprocs
     start_sequences = (int *) malloc(numprocs * sizeof(int));
     // End sequences for each process
     end_sequences = (int *) malloc(numprocs * sizeof(int));
+
+    if (print_computation_time) {
+        end = MPI_Wtime();
+        malloc_time += end-start;
+        start = MPI_Wtime();
+    }
 
     // Feed each read and try to detect repeats
     if (myid == 0) {
@@ -419,6 +433,8 @@ int handle_one_file(char *inputFile, int print_alignment, int myid, int numprocs
     }
 
     if (print_computation_time) {
+        end = MPI_Wtime();
+        loadbalance_time += end-start;
         start = MPI_Wtime();
     }
     // Broadcast sequences lengths from process 0 to all processes
@@ -543,10 +559,12 @@ int handle_one_file(char *inputFile, int print_alignment, int myid, int numprocs
     }
 
     if (print_computation_time) {
-        double avgtime_comm, avgtime_read, avgtime_prg, avgtime_es;
+        double avgtime_comm, avgtime_read, avgtime_prg, avgtime_es, avgtime_malloc, avgtime_lb;
         start = MPI_Wtime();
         MPI_Reduce(&communication_time, &avgtime_comm, 1, MPI_DOUBLE, MPI_SUM, 0,MPI_COMM_WORLD);
         MPI_Reduce(&es_time, &avgtime_es, 1, MPI_DOUBLE, MPI_SUM, 0,MPI_COMM_WORLD);
+        MPI_Reduce(&malloc_time, &avgtime_malloc, 1, MPI_DOUBLE, MPI_SUM, 0,MPI_COMM_WORLD);
+        MPI_Reduce(&loadbalance_time, &avgtime_lb, 1, MPI_DOUBLE, MPI_SUM, 0,MPI_COMM_WORLD);
         MPI_Reduce(&handle_read_time, &avgtime_read, 1, MPI_DOUBLE, MPI_SUM, 0,MPI_COMM_WORLD);
         MPI_Reduce(&program_time, &avgtime_prg, 1, MPI_DOUBLE, MPI_SUM, 0,MPI_COMM_WORLD);
         end = MPI_Wtime();
@@ -555,6 +573,8 @@ int handle_one_file(char *inputFile, int print_alignment, int myid, int numprocs
             avgtime_comm += (end-start)/numprocs;
             fprintf(stderr, "avg. time communications: %f\n", avgtime_comm/numprocs);
             fprintf(stderr, "avg. time handle read: %f\n", avgtime_read/numprocs);
+            fprintf(stderr, "avg. time malloc: %f\n", avgtime_malloc/numprocs);
+            fprintf(stderr, "avg. time loadbalance: %f\n", avgtime_lb/numprocs);
             fprintf(stderr, "avg. time handle I/O: %f\n", avgtime_es/numprocs);
             fprintf(stderr, "avg. time handle_one_file function: %f\n", avgtime_prg/numprocs);
         }
