@@ -455,7 +455,9 @@ int handle_one_file(char *inputFile, int print_alignment, int myid, int numprocs
     int num_end_seq = end_sequences[myid];
     int current_seq = num_start_seq;
 
-    
+    if (print_computation_time) {
+        start = MPI_Wtime();
+    }  
     // Move process to each initial position in file
     fseek(fp, seq_start_pointers[num_start_seq], SEEK_SET);
     memset(s, '\0', sizeof(s));
@@ -470,9 +472,7 @@ int handle_one_file(char *inputFile, int print_alignment, int myid, int numprocs
     srand(myid);
 
     Read currentRead;
-    if (print_computation_time) {
-        start = MPI_Wtime();
-    }
+
     //fprintf(stderr, "initial seq for process %d: %d\n", myid, current_seq);
     while (fgets(s, BLK, fp) != NULL && (current_seq < num_end_seq)) { // Feed a string of size BLK from fp into string s
         if(s[0] == '>'){
@@ -512,20 +512,20 @@ int handle_one_file(char *inputFile, int print_alignment, int myid, int numprocs
         current_seq++;
     }
 
-    if (print_computation_time) {
-        end = MPI_Wtime();
-        handle_read_time = end-start;
-    }
 
     fclose(fp);
     long int out_seq_ptr = 0;
     int current_proc = 0;
     char *result_filename = "result.txt";
     out_ptrs = (long int *) malloc(numprocs * sizeof(long int));
-    MPI_Barrier(MPI_COMM_WORLD);
 
     long int seq_pointer = ftell(output_file);
     rewind(output_file);
+
+    if (print_computation_time) {
+        end = MPI_Wtime();
+        handle_read_time = end-start;
+    }
 
     if (print_computation_time) {
         start = MPI_Wtime();
