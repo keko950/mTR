@@ -187,7 +187,7 @@ void remove_redundant_ranges_from_directional_index(int query_start, int query_e
     }
 }
 
-void handle_one_TR(char *readID, int inputLen, int print_alignment){
+void handle_one_TR(char *readID, int inputLen, int print_alignment, FILE * m_file, double *write_time){
     //
     // Locate overlapping regions of tandem repeats
     //
@@ -271,7 +271,7 @@ void handle_one_TR(char *readID, int inputLen, int print_alignment){
     struct timeval s_time_chaining, e_time_chaining;
     gettimeofday(&s_time_chaining, NULL);
     
-    chaining(print_alignment, readID);
+    chaining(print_alignment, readID, m_file, write_time);
     
     gettimeofday(&e_time_chaining, NULL);
     time_chaining += (e_time_chaining.tv_sec - s_time_chaining.tv_sec) + (e_time_chaining.tv_usec - s_time_chaining.tv_usec)*1.0E-6;
@@ -282,7 +282,7 @@ void handle_one_TR(char *readID, int inputLen, int print_alignment){
     
 }
 
-void handle_one_read(char *readID, int inputLen, int read_cnt, int print_alignment)
+void handle_one_read(char *readID, int inputLen, int read_cnt, int print_alignment, FILE *m_file, double* write_time)
 {
-    handle_one_TR(readID, inputLen, print_alignment);
+    handle_one_TR(readID, inputLen, print_alignment, m_file, write_time);
 }

@@ -275,13 +275,15 @@ int handle_one_file(char *inputFile, int print_alignment, int numprocs, int *seq
     // Feed a string from a file, convert the string into a series of integers
     //---------------------------------------------------------------------------
     clock_t start, end;
-    double cpu_time_read, cpu_time_compute, time_malloc;
+    double cpu_time_read, cpu_time_compute, time_malloc, write_time;
+
     start = clock();
     malloc_global_variables();
     end = clock();
     time_malloc += ((double) (end - start)) / CLOCKS_PER_SEC;
     Read *currentRead = malloc(sizeof(Read));
     
+    FILE *m_file = init_handle_one_file("result.txt");
     FILE *fp = init_handle_one_file(inputFile);
     // Feed each read and try to detect repeats
     int counter = 0;
@@ -297,7 +299,7 @@ int handle_one_file(char *inputFile, int print_alignment, int numprocs, int *seq
             for(int i=0; i<currentRead->len; i++) {
                 orgInputString[i] = currentRead->codedString[i];
             }            
-            handle_one_read(currentRead->ID, currentRead->len, tmp_read_cnt, print_alignment);
+            handle_one_read(currentRead->ID, currentRead->len, tmp_read_cnt, print_alignment, m_file, &write_time);
             counter++;
         }
     } else {
@@ -311,7 +313,7 @@ int handle_one_file(char *inputFile, int print_alignment, int numprocs, int *seq
             for(int i=0; i<currentRead->len; i++) {
                 orgInputString[i] = currentRead->codedString[i];
             }            
-            handle_one_read(currentRead->ID, currentRead->len, tmp_read_cnt, print_alignment);
+            handle_one_read(currentRead->ID, currentRead->len, tmp_read_cnt, print_alignment, m_file, &write_time);
             end = clock();
             cpu_time_compute += ((double) (end - start)) / CLOCKS_PER_SEC;
             counter++;
@@ -321,7 +323,7 @@ int handle_one_file(char *inputFile, int print_alignment, int numprocs, int *seq
     fclose(fp);
     fprintf(stderr, "%f\tComputing time\n", cpu_time_compute);
     fprintf(stderr, "%f\tMalloc time\n", time_malloc);
-    fprintf(stderr, "%f\tRead time\n", cpu_time_read);
+    fprintf(stderr, "%f\tRead time\n", cpu_time_read + write_time);
     free_global_variables();
     free(currentRead);
     

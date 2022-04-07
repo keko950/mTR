@@ -34,6 +34,7 @@
 #include <vector>
 #include <map>
 #include <string.h>
+#include <chrono>
 using namespace std;
 //#define DEBUG_chaining
 
@@ -123,8 +124,9 @@ public:
         delete [] string_score;
     }
     
-    void print_one_TR(int print_alignment)const{
-        printf(
+    void print_one_TR(int print_alignment, FILE *f)const{
+        fprintf(
+            f,
            "%.50s\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%f\t%d\t%d\t%d\t%s\n",
            readID,
            inputLen,
@@ -168,11 +170,11 @@ public:
         fflush(stdout);
         
     }
-    void print_all_TRs(int print_alignment)const{
+    void print_all_TRs(int print_alignment, FILE *f)const{
         if(predecessor != NULL){
-            predecessor->print_all_TRs(print_alignment);
+            predecessor->print_all_TRs(print_alignment, f);
         }
-        print_one_TR(print_alignment);
+        print_one_TR(print_alignment, f);
     }
 	void print_one_alignment()const{
 		cout << "(" <<	start_x << "," << start_y << ")\t-> (" << end_x << ","  << end_y <<
@@ -239,7 +241,7 @@ void insert_an_alignment_into_set(
                             string_score));
 }
 
-void chaining(int print_alignment, char* readID){
+void chaining(int print_alignment, char* readID, FILE* f, double *write_time){
     if(set_of_alignments.empty()){
         return;
     }
@@ -291,7 +293,7 @@ void chaining(int print_alignment, char* readID){
 #ifdef DEBUG_chaining
                 if (readID[0] == '9' && readID[1] == '2'){
                     cout << "insert empty\t";
-                    tmpX_alignment->print_one_TR(print_alignment);
+                    //tmpX_alignment->print_one_TR(print_alignment);
                 }
 #endif
             }else{
@@ -312,7 +314,7 @@ void chaining(int print_alignment, char* readID){
 #ifdef DEBUG_chaining
                     if (readID[0] == '9' && readID[1] == '2'){
                         cout << "insert flag\t";
-                        tmpX_alignment->print_one_TR(print_alignment);
+                        //tmpX_alignment->print_one_TR(print_alignment);
                     }
 
 #endif
@@ -325,7 +327,7 @@ void chaining(int print_alignment, char* readID){
                         {
 #ifdef DEBUG_chaining
                             if (readID[0] == '9' && readID[1] == '2')
-                                cout << "delete\t"; tmpY->second->print_one_TR(print_alignment);
+                                //cout << "delete\t"; tmpY->second->print_one_TR(print_alignment);
 #endif
                             tmpY = sorted_by_Y.erase(tmpY);
                         } else {
@@ -342,11 +344,13 @@ void chaining(int print_alignment, char* readID){
     //(sorted_by_Y.rbegin())->second->concatenate_similar_alignments();
     
 #ifdef DEBUG_chaining
-    (sorted_by_Y.rbegin())->second->print_chain();
+    //(sorted_by_Y.rbegin())->second->print_chain();
 #endif
-    (sorted_by_Y.rbegin())->second->print_all_TRs(print_alignment);
-
-    
+    auto start = std::chrono::high_resolution_clock::now();
+    (sorted_by_Y.rbegin())->second->print_all_TRs(print_alignment, f);
+    auto end = std::chrono::high_resolution_clock::now();
+    auto duration = std::chrono::duration_cast<std::chrono::seconds>(end - start);
+    write_time += duration.count();
     // delete all
     /*
     set_of_alignments.clear();
