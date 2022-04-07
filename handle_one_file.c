@@ -33,6 +33,7 @@
 #include <math.h>
 #include <string.h>
 #include "mTR.h"
+#include <time.h>
 
 
 void free_global_variables_and_exit(){
