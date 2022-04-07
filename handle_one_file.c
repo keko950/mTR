@@ -562,7 +562,7 @@ int handle_one_file(char *inputFile, int print_alignment, int myid, int numprocs
         double avgtime_comm, avgtime_read, avgtime_prg, avgtime_es, avgtime_malloc, avgtime_lb;
         start = MPI_Wtime();
         MPI_Reduce(&communication_time, &avgtime_comm, 1, MPI_DOUBLE, MPI_SUM, 0,MPI_COMM_WORLD);
-        //MPI_Reduce(&es_time, &avgtime_es, 1, MPI_DOUBLE, MPI_SUM, 0,MPI_COMM_WORLD);
+        MPI_Reduce(&es_time, &avgtime_es, 1, MPI_DOUBLE, MPI_SUM, 0,MPI_COMM_WORLD);
         MPI_Reduce(&malloc_time, &avgtime_malloc, 1, MPI_DOUBLE, MPI_SUM, 0,MPI_COMM_WORLD);
         MPI_Reduce(&loadbalance_time, &avgtime_lb, 1, MPI_DOUBLE, MPI_SUM, 0,MPI_COMM_WORLD);
         MPI_Reduce(&handle_read_time, &avgtime_read, 1, MPI_DOUBLE, MPI_SUM, 0,MPI_COMM_WORLD);
