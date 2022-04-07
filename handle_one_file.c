@@ -34,6 +34,7 @@
 #include <string.h>
 #include "mTR.h"
 
+
 void free_global_variables_and_exit(){
     // If any of the above global variables failed to be allocated in the heap, free other variables and exit.
     if(nextReadID        != NULL){ free(nextReadID); }
@@ -272,8 +273,12 @@ int handle_one_file(char *inputFile, int print_alignment, int numprocs, int *seq
     //---------------------------------------------------------------------------
     // Feed a string from a file, convert the string into a series of integers
     //---------------------------------------------------------------------------
-    
+    clock_t start, end;
+    double cpu_time_read, cpu_time_compute, time_malloc;
+    start = clock();
     malloc_global_variables();
+    end = clock();
+    time_malloc += ((double) (end - start)) / CLOCKS_PER_SEC;
     Read *currentRead = malloc(sizeof(Read));
     
     FILE *fp = init_handle_one_file(inputFile);
@@ -296,19 +301,28 @@ int handle_one_file(char *inputFile, int print_alignment, int numprocs, int *seq
         }
     } else {
         for(;;){
+            start = clock();
             return_one_read(fp, currentRead);
+            end = clock();
+            cpu_time_read += ((double) (end - start)) / CLOCKS_PER_SEC;
+            start = clock();
             if(currentRead->len == 0) break;
             for(int i=0; i<currentRead->len; i++) {
                 orgInputString[i] = currentRead->codedString[i];
             }            
             handle_one_read(currentRead->ID, currentRead->len, tmp_read_cnt, print_alignment);
+            end = clock();
+            cpu_time_compute += ((double) (end - start)) / CLOCKS_PER_SEC;
             counter++;
         }
     }
 
     fclose(fp);
-    
+    fprintf(stderr, "%f\tComputing time\n", cpu_time_compute);
+    fprintf(stderr, "%f\tMalloc time\n", time_malloc);
+    fprintf(stderr, "%f\tRead time\n", cpu_time_read);
     free_global_variables();
     free(currentRead);
+    
     return(tmp_read_cnt);
 }
