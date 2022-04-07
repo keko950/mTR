@@ -575,7 +575,7 @@ int handle_one_file(char *inputFile, int print_alignment, int myid, int numprocs
             fprintf(stderr, "avg. time handle read: %f\n", avgtime_read/numprocs);
             fprintf(stderr, "avg. time malloc: %f\n", avgtime_malloc/numprocs);
             fprintf(stderr, "avg. time loadbalance: %f\n", avgtime_lb/numprocs);
-            fprintf(stderr, "avg. time handle I/O: %f\n", es_time);
+            fprintf(stderr, "avg. time handle I/O: %f\n", es_time/numprocs);
             fprintf(stderr, "avg. time handle_one_file function: %f\n", avgtime_prg/numprocs);
         }
 
