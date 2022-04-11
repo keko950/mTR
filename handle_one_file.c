@@ -441,6 +441,9 @@ int handle_one_file(char *inputFile, int print_alignment, int myid, int numprocs
     int load = num_sequences / numprocs;
     int num_start_seq = myid * load;
     int num_end_seq = num_start_seq + load;
+    if (myid == numprocs-1 ){
+        num_end_seq = num_sequences;
+    }
     int current_seq = num_start_seq;
 
     if (print_computation_time) {
