@@ -417,42 +417,30 @@ int handle_one_file(char *inputFile, int print_alignment, int myid, int numprocs
         long int seq_lens_per_proc = total_seqs_len / numprocs;
         int current_proc = 0;
         long int len_acu = 0;
-        
-        for (int seq = 0; seq < num_sequences; seq++) {
-            if (len_acu >= seq_lens_per_proc * current_proc) {
-                if (current_proc == 0) {
-                    end_sequences[numprocs-1] = num_sequences;
-                } else {
-                    end_sequences[current_proc-1] = seq;
-                }
-                start_sequences[current_proc] = seq;
-                current_proc++;
-            }
-            len_acu += seq_lens[seq];
-        }
-    }
+    }    
 
     if (print_computation_time) {
         end = MPI_Wtime();
         loadbalance_time += end-start;
         start = MPI_Wtime();
     }
-    // Broadcast sequences lengths from process 0 to all processes
-    MPI_Bcast(seq_lens, num_sequences, MPI_INT, 0, MPI_COMM_WORLD);
+    // // Broadcast sequences lengths from process 0 to all processes
+    // MPI_Bcast(seq_lens, num_sequences, MPI_INT, 0, MPI_COMM_WORLD);
     // Broadcast sequences start positions in sequences file from process 0 to all processes
     MPI_Bcast(seq_start_pointers, num_sequences, MPI_LONG, 0, MPI_COMM_WORLD);
     // Broadcast start sequences from process 0 to all processes
-    MPI_Bcast(start_sequences, numprocs, MPI_INT, 0, MPI_COMM_WORLD);
-    // Broadcast end sequences from process 0 to all processes
-    MPI_Bcast(end_sequences, numprocs, MPI_INT, 0, MPI_COMM_WORLD);
+    // MPI_Bcast(start_sequences, numprocs, MPI_INT, 0, MPI_COMM_WORLD);
+    // // Broadcast end sequences from process 0 to all processes
+    // MPI_Bcast(end_sequences, numprocs, MPI_INT, 0, MPI_COMM_WORLD);
     if (print_computation_time) {
         end = MPI_Wtime();
         communication_time += end-start;
     }
 
     // Get sequences to do for every process
-    int num_start_seq = start_sequences[myid];
-    int num_end_seq = end_sequences[myid];
+    int load = num_sequences / numprocs;
+    int num_start_seq = myid * load;
+    int num_end_seq = num_start_seq + load;
     int current_seq = num_start_seq;
 
     if (print_computation_time) {
