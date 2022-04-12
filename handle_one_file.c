@@ -414,24 +414,15 @@ int handle_one_file(char *inputFile, int print_alignment, int myid, int numprocs
     if (myid == 0) {
         int total_seqs_len;
         read_sequences(fp, seq_lens, seq_start_pointers, &total_seqs_len, myid, numprocs);
-        long int seq_lens_per_proc = total_seqs_len / numprocs;
-        int current_proc = 0;
-        long int len_acu = 0;
     }    
 
     if (print_computation_time) {
         end = MPI_Wtime();
-        loadbalance_time += end-start;
+        es_time += end-start;
         start = MPI_Wtime();
     }
-    // // Broadcast sequences lengths from process 0 to all processes
-    // MPI_Bcast(seq_lens, num_sequences, MPI_INT, 0, MPI_COMM_WORLD);
-    // Broadcast sequences start positions in sequences file from process 0 to all processes
+
     MPI_Bcast(seq_start_pointers, num_sequences, MPI_LONG, 0, MPI_COMM_WORLD);
-    // Broadcast start sequences from process 0 to all processes
-    // MPI_Bcast(start_sequences, numprocs, MPI_INT, 0, MPI_COMM_WORLD);
-    // // Broadcast end sequences from process 0 to all processes
-    // MPI_Bcast(end_sequences, numprocs, MPI_INT, 0, MPI_COMM_WORLD);
     if (print_computation_time) {
         end = MPI_Wtime();
         communication_time += end-start;
@@ -505,48 +496,11 @@ int handle_one_file(char *inputFile, int print_alignment, int myid, int numprocs
 
 
     fclose(fp);
-    long int out_seq_ptr = 0;
-    int current_proc = 0;
-    char *result_filename = "result.txt";
-    out_ptrs = (long int *) malloc(numprocs * sizeof(long int));
-
-    long int seq_pointer = ftell(output_file);
-    rewind(output_file);
 
     if (print_computation_time) {
         end = MPI_Wtime();
         handle_read_time = end-start;
-    }
-
-    if (print_computation_time) {
-        start = MPI_Wtime();
-    }
-
-    MPI_Allgather(&seq_pointer, 1, MPI_LONG, out_ptrs, 1, MPI_LONG, MPI_COMM_WORLD);
-
-    if (print_computation_time) {
-        end = MPI_Wtime();
-        communication_time += end-start;
-    }
-    for(current_proc = 0; current_proc < myid; current_proc++){
-        out_seq_ptr += out_ptrs[current_proc];
-    }
-    
-    if (print_computation_time) {
-        start = MPI_Wtime();
-    }
-    MPI_File result_file;
-    MPI_File_open(MPI_COMM_WORLD, result_filename, MPI_MODE_CREATE | MPI_MODE_WRONLY, MPI_INFO_NULL, &result_file);
-    MPI_File_seek(result_file, out_seq_ptr, MPI_SEEK_SET);
-    while(fgets(s, BLK, output_file) != NULL) {
-        MPI_File_write(result_file, s, strlen(s), MPI_CHAR, MPI_STATUS_IGNORE);
-    }
-    MPI_File_close(&result_file);
-    if (print_computation_time) {
-        end = MPI_Wtime();
-        es_time += end-start;
-        all_end = MPI_Wtime();
-        program_time = all_end - all_start;
+        program_time = end - all_start;
     }
 
     if (print_computation_time) {

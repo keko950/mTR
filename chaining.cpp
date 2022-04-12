@@ -131,7 +131,7 @@ public:
     }
     
     void print_one_TR(int print_alignment)const{
-        fprintf(f,
+        printf(
            "%.100s\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%f\t%d\t%d\t%d\t%s\n",
            readID,
            inputLen,
