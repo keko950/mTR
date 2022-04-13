@@ -53,6 +53,7 @@ int main(int argc, char *argv[])
     MPI_Comm_rank(MPI_COMM_WORLD, &myid);
     MPI_Comm_size(MPI_COMM_WORLD, &numprocs);
     char *inputFile;
+    char *outputFolder;
 
     // default parameters
     int print_computation_time = 0;
@@ -61,7 +62,7 @@ int main(int argc, char *argv[])
     Manhattan_Distance = 1;
 
     int opt;
-    while ((opt = getopt(argc, argv, "acm:p")) != -1) {
+    while ((opt = getopt(argc, argv, "acmf:p")) != -1) {
         switch(opt){
             case 'a':
                 print_alignment = 1;
@@ -78,6 +79,9 @@ int main(int argc, char *argv[])
                     fprintf(stderr, "The input minimum match ratio must range from 0 to 1.\n", min_match_ratio);
                     exit(EXIT_FAILURE);
                 }
+            case 'f':
+                outputFolder = optarg;
+                break;
             case 'p':
                 Manhattan_Distance = 0;
                 fprintf(stderr, "Pearson's correlation coefficient distance in place of Manhattan distance.\n");
@@ -105,7 +109,7 @@ int main(int argc, char *argv[])
     struct timeval s, e;
     gettimeofday(&s, NULL);
     
-    int read_cnt = handle_one_file(inputFile, print_alignment, myid, numprocs, print_computation_time);
+    int read_cnt = handle_one_file(inputFile, print_alignment, myid, numprocs, print_computation_time, outputFolder);
     
     gettimeofday(&e, NULL);
     time_all = (e.tv_sec - s.tv_sec) + (e.tv_usec - s.tv_usec)*1.0E-6;
