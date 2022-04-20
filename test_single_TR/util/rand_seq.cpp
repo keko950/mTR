@@ -60,17 +60,19 @@ void rand_fasta(const char* out_name, const char* rep_name, int rep_length, int 
 	ofs.open(out_name);
 	ofstream ofs2;
 	ofs2.open(rep_name);
+	int random;
 
 	for(int L=0; L<loop; L++)
 	{
 		ofs << ">"  << L << endl;
 		
-		for(int i=0; i<pre; i++)
+		random  = (rand() % (post + 1 - pre)) + pre;
+		for(int i=0; i<random; i++)
 		{
 			ofs << rand_string();
 		}
 		
-		int N = pre + 1;
+		int N = random + 1;
 		
 		vector<int> error_row;
 		
@@ -212,7 +214,7 @@ void rand_fasta(const char* out_name, const char* rep_name, int rep_length, int 
 			}
 		}
 		
-		for(int i=0; i<post; i++)
+		for(int i=0; i<random; i++)
 		{
 			ofs << rand_string();
 		}
