@@ -33,7 +33,9 @@
 #include <math.h>
 #include <string.h>
 #include "mTR.h"
-
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <unistd.h>
 
 void free_global_variables_and_exit(){
     // If any of the above global variables failed to be allocated in the heap, free other variables and exit.
@@ -341,7 +343,7 @@ int return_all_reads(FILE *fp, Read *readList, int myid, int numprocs){
 }
 
 
-int handle_one_file(char *inputFile, int print_alignment, int myid, int numprocs, int print_computation_time){
+int handle_one_file(char *inputFile, int print_alignment, int myid, int numprocs, int print_computation_time, char *outputFolder){
     //---------------------------------------------------------------------------
     // Feed a string from a file, convert the string into a series of integers
     //---------------------------------------------------------------------------
@@ -373,6 +375,12 @@ int handle_one_file(char *inputFile, int print_alignment, int myid, int numprocs
                 num_sequences++;
             }
         }
+
+        struct stat st = {0};
+        if (stat(outputFolder, &st) == -1) {
+            mkdir(outputFolder, 0700);
+        }
+
         fprintf(stderr, "number of sequences %d\n", num_sequences);
         rewind(fp);
     }
@@ -465,8 +473,9 @@ int handle_one_file(char *inputFile, int print_alignment, int myid, int numprocs
     int cnt=0;
     int string_cnt=0;
 
+    
     char output_filename[4096] = "";
-    sprintf(output_filename, "result-%d.txt", myid);
+    sprintf(output_filename, "%s/result-%d.txt", outputFolder, myid);
     FILE *output_file = fopen(output_filename, "w+");
 
     srand(myid);
@@ -516,7 +525,8 @@ int handle_one_file(char *inputFile, int print_alignment, int myid, int numprocs
     fclose(fp);
     long int out_seq_ptr = 0;
     int current_proc = 0;
-    char *result_filename = "result.txt";
+    char result_filename[4096] = "";
+    sprintf(result_filename, "%s/result.txt", outputFolder);
     out_ptrs = (long int *) malloc(numprocs * sizeof(long int));
 
     long int seq_pointer = ftell(output_file);
@@ -525,9 +535,6 @@ int handle_one_file(char *inputFile, int print_alignment, int myid, int numprocs
     if (print_computation_time) {
         end = MPI_Wtime();
         handle_read_time = end-start;
-    }
-
-    if (print_computation_time) {
         start = MPI_Wtime();
     }
 
@@ -536,14 +543,12 @@ int handle_one_file(char *inputFile, int print_alignment, int myid, int numprocs
     if (print_computation_time) {
         end = MPI_Wtime();
         communication_time += end-start;
+        start = MPI_Wtime();
     }
     for(current_proc = 0; current_proc < myid; current_proc++){
         out_seq_ptr += out_ptrs[current_proc];
     }
     
-    if (print_computation_time) {
-        start = MPI_Wtime();
-    }
     MPI_File result_file;
     MPI_File_open(MPI_COMM_WORLD, result_filename, MPI_MODE_CREATE | MPI_MODE_WRONLY, MPI_INFO_NULL, &result_file);
     MPI_File_seek(result_file, out_seq_ptr, MPI_SEEK_SET);
